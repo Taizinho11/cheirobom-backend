@@ -48,7 +48,8 @@ app.use((err, req, res, _next) => {
   res.status(status).json({ error: err.message || 'Erreur interne du serveur' });
 });
 
-app.listen(config.port, () => {
+console.log('PORT env variable:', process.env.PORT);
+app.listen(config.port, '0.0.0.0', () => {
   console.log(`Cheirobom backend démarré sur le port ${config.port} (provider: ${config.payment.provider})`);
 });
 
