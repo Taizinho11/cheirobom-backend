@@ -10,7 +10,18 @@ const checkoutRouter = require('./routes/checkout');
 
 const app = express();
 
-app.use(cors({ origin: config.cors.origin, credentials: true }));
+const allowedOrigins = [
+  config.cors.origin,
+  'https://famous-jalebi-490e12.netlify.app',
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error(`CORS bloqué : ${origin}`));
+  },
+  credentials: true,
+}));
 
 // Le webhook Mollie envoie application/x-www-form-urlencoded, SumUp envoie JSON.
 app.use(express.json());
