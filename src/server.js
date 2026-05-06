@@ -6,6 +6,7 @@ const config = require('./config');
 const cartRouter = require('./routes/cart');
 const ordersRouter = require('./routes/orders');
 const paymentsRouter = require('./routes/payments');
+const checkoutRouter = require('./routes/checkout');
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/api/cart', cartRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/payments', paymentsRouter);
+app.use('/api/checkout', checkoutRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({
