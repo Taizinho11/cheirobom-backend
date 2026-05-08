@@ -24,5 +24,10 @@ module.exports = {
       merchantCode: process.env.SUMUP_MERCHANT_CODE,
       payBaseUrl: process.env.SUMUP_PAY_BASE_URL || 'https://pay.sumup.com/b2c/CHANGE_ME',
     },
+    paypal: {
+      clientId: process.env.PAYPAL_CLIENT_ID,
+      clientSecret: process.env.PAYPAL_CLIENT_SECRET,
+      sandbox: process.env.PAYPAL_SANDBOX !== 'false',
+    },
   },
 };

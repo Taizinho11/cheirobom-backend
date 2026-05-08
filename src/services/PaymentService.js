@@ -3,6 +3,7 @@ const store = require('../store');
 const orderService = require('./OrderService');
 const MollieProvider = require('../providers/MollieProvider');
 const SumUpProvider = require('../providers/SumUpProvider');
+const PayPalProvider = require('../providers/PayPalProvider');
 const TestProvider = require('../providers/TestProvider');
 
 function buildProvider() {
@@ -11,6 +12,8 @@ function buildProvider() {
       return new MollieProvider(config.payment.mollie.apiKey);
     case 'sumup':
       return new SumUpProvider(config.payment.sumup);
+    case 'paypal':
+      return new PayPalProvider(config.payment.paypal);
     case 'test':
       return new TestProvider();
     default:
