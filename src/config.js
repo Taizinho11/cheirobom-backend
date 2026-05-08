@@ -29,5 +29,8 @@ module.exports = {
       clientSecret: process.env.PAYPAL_CLIENT_SECRET,
       sandbox: process.env.PAYPAL_SANDBOX !== 'false',
     },
+    stripe: {
+      secretKey: process.env.STRIPE_SECRET_KEY,
+    },
   },
 };

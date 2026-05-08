@@ -4,6 +4,7 @@ const orderService = require('./OrderService');
 const MollieProvider = require('../providers/MollieProvider');
 const SumUpProvider = require('../providers/SumUpProvider');
 const PayPalProvider = require('../providers/PayPalProvider');
+const StripeProvider = require('../providers/StripeProvider');
 const TestProvider = require('../providers/TestProvider');
 
 function buildProvider() {
@@ -14,6 +15,8 @@ function buildProvider() {
       return new SumUpProvider(config.payment.sumup);
     case 'paypal':
       return new PayPalProvider(config.payment.paypal);
+    case 'stripe':
+      return new StripeProvider(config.payment.stripe);
     case 'test':
       return new TestProvider();
     default:
