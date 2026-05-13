@@ -1,3 +1,5 @@
+// src/fournisseurs/StripeProvider.js
+
 const Stripe = require('stripe');
 const PaymentProvider = require('./PaymentProvider');
 
@@ -29,6 +31,40 @@ class StripeProvider extends PaymentProvider {
       cancel_url: `${redirectUrl}&payment=cancelled`,
       client_reference_id: orderId,
       metadata: { orderId },
+
+      // ✅ AJOUT 1 — Demande l'adresse de livraison au client
+      shipping_address_collection: {
+        allowed_countries: ['FR', 'IT', 'BE', 'CH', 'LU', 'MC', 'PT', 'ES'],
+      },
+
+      // ✅ AJOUT 2 — Propose Livraison ou Click & Collect
+      shipping_options: [
+        {
+          shipping_rate_data: {
+            type: 'fixed_amount',
+            fixed_amount: { amount: 500, currency: currency.toLowerCase() },
+            display_name: '🚚 Livraison à domicile',
+            delivery_estimate: {
+              minimum: { unit: 'business_day', value: 3 },
+              maximum: { unit: 'business_day', value: 5 },
+            },
+          },
+        },
+        {
+          shipping_rate_data: {
+            type: 'fixed_amount',
+            fixed_amount: { amount: 0, currency: currency.toLowerCase() },
+            display_name: '🏪 Click & Collect – Vallauris',
+            delivery_estimate: {
+              minimum: { unit: 'business_day', value: 1 },
+              maximum: { unit: 'business_day', value: 2 },
+            },
+          },
+        },
+      ],
+
+      // ✅ AJOUT 3 — Demande le numéro de téléphone
+      phone_number_collection: { enabled: true },
     });
 
     return { paymentId: session.id, checkoutUrl: session.url };
@@ -43,10 +79,12 @@ class StripeProvider extends PaymentProvider {
       amount: session.amount_total ?? 0,
       currency: (session.currency ?? 'eur').toUpperCase(),
       metadata: session.metadata ?? {},
+      // ✅ Adresse et livraison récupérables ici
+      shipping: session.shipping_details ?? null,
+      shippingCost: session.shipping_cost ?? null,
     };
   }
 
-  // Stripe envoie checkout.session.completed — on re-vérifie via l'API plutôt que de faire confiance au payload.
   async handleWebhook(body) {
     const sessionId = body?.data?.object?.id;
     if (!sessionId) throw new Error('Webhook Stripe : data.object.id manquant');
