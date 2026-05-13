@@ -14,7 +14,7 @@ module.exports = {
   },
 
   payment: {
-    provider: process.env.PAYMENT_PROVIDER || 'mollie',
+    provider: process.env.PAYMENT_PROVIDER || 'stripe',
     mollie: {
       apiKey: process.env.MOLLIE_API_KEY,
     },
