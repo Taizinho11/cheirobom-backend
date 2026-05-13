@@ -10,8 +10,8 @@ const STATUS_MAP = {
 class StripeProvider extends PaymentProvider {
   constructor({ secretKey }) {
     super();
-    if (!secretKey) throw new Error('STRIPE_SECRET_KEY requis dans .env');
-    this.stripe = new Stripe(secretKey);
+    if (!secretKey) console.warn('STRIPE_SECRET_KEY absent — les paiements Stripe échoueront');
+    this.stripe = secretKey ? new Stripe(secretKey) : null;
   }
 
   async createPayment({ orderId, amount, currency, description, redirectUrl }) {
