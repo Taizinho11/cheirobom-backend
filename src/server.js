@@ -12,7 +12,7 @@ const app = express();
 
 const allowedOrigins = [
   config.cors.origin,
-  'https://famous-jalebi-490e12.netlify.app',
+  'https://cheirobom-frontend.vercel.app',
 ].filter(Boolean);
 
 app.use(cors({
