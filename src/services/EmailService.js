@@ -303,19 +303,11 @@ class EmailService {
     console.log(`[EmailService] onOrderCreated — ${order.orderId}`);
     const { customer = {} } = order;
 
-    await Promise.all([
-      this._send({
-        to: ADMIN_EMAIL,
-        subject: `🛍️ Nouvelle commande Cheirobom — ${order.orderId}`,
-        html: newOrderAdminHtml(order),
-      }),
-
-      this._send({
-        to: ADMIN_EMAIL,
-        subject: `Merci pour votre commande — Cheirobom 🖤`,
-        html: confirmationClientHtml(order),
-      }),
-    ]);
+    await this._send({
+      to: ADMIN_EMAIL,
+      subject: `🛍️ Nouvelle commande Cheirobom — ${order.orderId}`,
+      html: newOrderAdminHtml(order),
+    });
   }
 
   // Appelé quand le paiement est confirmé (statut 'paid')
