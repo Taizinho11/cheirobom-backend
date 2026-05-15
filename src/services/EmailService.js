@@ -310,13 +310,11 @@ class EmailService {
         html: newOrderAdminHtml(order),
       }),
 
-      customer.email
-        ? this._send({
-            to: customer.email,
-            subject: `Merci pour votre commande — Cheirobom 🖤`,
-            html: confirmationClientHtml(order),
-          })
-        : Promise.resolve(),
+      this._send({
+        to: ADMIN_EMAIL,
+        subject: `Merci pour votre commande — Cheirobom 🖤`,
+        html: confirmationClientHtml(order),
+      }),
     ]);
   }
 
