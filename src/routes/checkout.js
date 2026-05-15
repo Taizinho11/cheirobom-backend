@@ -3,7 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const store = require('../store');
 const orderService = require('../services/OrderService');
 const paymentService = require('../services/PaymentService');
-const emailService = require('../services/EmailService');
+
 
 const router = Router();
 
@@ -51,7 +51,6 @@ router.post('/', async (req, res, next) => {
     };
 
     store.setOrder(orderId, order);
-    emailService.onOrderCreated(order).catch(err => console.error('Email error:', err));
 
     const { checkoutUrl } = await paymentService.createCheckout(order);
 

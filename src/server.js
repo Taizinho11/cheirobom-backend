@@ -23,6 +23,9 @@ app.use(cors({
   credentials: true,
 }));
 
+// Le webhook Stripe nécessite le raw body pour vérifier la signature (doit être avant express.json)
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
 // Le webhook Mollie envoie application/x-www-form-urlencoded, SumUp envoie JSON.
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));

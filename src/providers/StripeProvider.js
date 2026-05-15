@@ -14,6 +14,8 @@ class StripeProvider extends PaymentProvider {
     super();
     if (!secretKey) console.warn('STRIPE_SECRET_KEY absent — les paiements Stripe échoueront');
     this.stripe = secretKey ? new Stripe(secretKey) : null;
+    this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || null;
+    if (!this.webhookSecret) console.warn('STRIPE_WEBHOOK_SECRET absent — la signature des webhooks ne sera pas vérifiée');
   }
 
   async createPayment({ orderId, amount, currency, description, redirectUrl }) {
@@ -85,8 +87,21 @@ class StripeProvider extends PaymentProvider {
     };
   }
 
-  async handleWebhook(body) {
-    const sessionId = body?.data?.object?.id;
+  async handleWebhook(body, headers) {
+    // Valider la signature Stripe si STRIPE_WEBHOOK_SECRET est défini
+    if (this.webhookSecret) {
+      const sig = headers?.['stripe-signature'];
+      if (!sig) throw new Error('Webhook Stripe : en-tête stripe-signature manquant');
+      // body doit être le raw Buffer (pas le JSON parsé) pour que la vérification fonctionne
+      try {
+        this.stripe.webhooks.constructEvent(body, sig, this.webhookSecret);
+      } catch (err) {
+        throw new Error(`Webhook Stripe : signature invalide — ${err.message}`);
+      }
+    }
+
+    const parsed = typeof body === 'string' || Buffer.isBuffer(body) ? JSON.parse(body) : body;
+    const sessionId = parsed?.data?.object?.id;
     if (!sessionId) throw new Error('Webhook Stripe : data.object.id manquant');
     return this.getPayment(sessionId);
   }
