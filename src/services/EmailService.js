@@ -1,59 +1,76 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const ADMIN_EMAIL = 'italosoaresleal11@gmail.com';
+const ADMIN_EMAIL  = 'boutique.cheirobom@gmail.com';
+const FROM_ADDRESS = 'onboarding@resend.dev';
+const FROM_NAME    = 'Cheirobom';
 
-function buildTransporter() {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  });
+// Prix stockés en centimes dans checkout.js → on divise par 100
+function fmtPrice(centimes) {
+  return (Number(centimes) / 100).toLocaleString('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }) + ' €';
 }
 
-function formatItems(items) {
-  return items
-    .map(
-      (item) =>
-        `<tr>
-          <td style="padding:8px 12px;border-bottom:1px solid #f0ebe3;">${item.name}${item.size ? ` — ${item.size}` : ''}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f0ebe3;text-align:center;">${item.qty}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f0ebe3;text-align:right;">${(item.price * item.qty).toFixed(2)} €</td>
-        </tr>`
-    )
-    .join('');
+function fmtAddress(shipping = {}) {
+  const parts = [
+    shipping.address,
+    [shipping.postal, shipping.city].filter(Boolean).join(' '),
+    shipping.country,
+  ].filter(Boolean);
+  return parts.length ? parts.join(', ') : '—';
 }
 
-function baseLayout(title, bodyHtml) {
+function buildClient() {
+  return new Resend(process.env.RESEND_API_KEY);
+}
+
+// ── Layout commun ────────────────────────────────────────────────────────────
+
+function baseLayout(bodyHtml) {
   return `<!DOCTYPE html>
 <html lang="fr">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#faf8f5;font-family:'Helvetica Neue',Arial,sans-serif;color:#3d3020;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#faf8f5;padding:40px 0;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cheirobom</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f0e8;font-family:'Helvetica Neue',Arial,sans-serif;color:#2c2414;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:48px 16px;">
     <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.06);">
-        <!-- Header -->
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:2px;overflow:hidden;box-shadow:0 4px 24px rgba(44,36,20,.10);">
+
+        <!-- En-tête -->
         <tr>
-          <td style="background:#1a1209;padding:28px 40px;text-align:center;">
-            <span style="font-family:Georgia,serif;font-size:24px;color:#b8924a;letter-spacing:.12em;">CHEIROBOM</span>
-            <p style="margin:6px 0 0;font-size:11px;color:#7a6a4a;letter-spacing:.2em;text-transform:uppercase;">Extraits de Parfum Olfazeta</p>
+          <td style="background:#0f0a04;padding:36px 40px;text-align:center;">
+            <div style="font-family:Georgia,'Times New Roman',serif;font-size:28px;letter-spacing:.18em;color:#c9a05a;text-transform:uppercase;">Cheirobom</div>
+            <div style="margin-top:6px;font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:#6b5a3a;">Extraits de Parfum · Olfazeta 30%</div>
           </td>
         </tr>
-        <!-- Title -->
+
+        <!-- Bande décorative dorée -->
         <tr>
-          <td style="padding:32px 40px 0;border-bottom:2px solid #b8924a;">
-            <h1 style="margin:0 0 24px;font-size:20px;font-weight:400;color:#1a1209;">${title}</h1>
+          <td style="background:linear-gradient(90deg,#8b6914,#c9a05a,#8b6914);height:2px;font-size:0;line-height:0;">&nbsp;</td>
+        </tr>
+
+        <!-- Corps -->
+        <tr><td style="padding:40px 40px 32px;">${bodyHtml}</td></tr>
+
+        <!-- Séparateur -->
+        <tr>
+          <td style="padding:0 40px;">
+            <div style="border-top:1px solid #e8e0d0;"></div>
           </td>
         </tr>
-        <!-- Body -->
-        <tr><td style="padding:28px 40px;">${bodyHtml}</td></tr>
-        <!-- Footer -->
+
+        <!-- Pied de page -->
         <tr>
-          <td style="padding:20px 40px;background:#faf8f5;border-top:1px solid #f0ebe3;text-align:center;">
-            <p style="margin:0;font-size:11px;color:#9a8a6a;">© Cheirobom · Extraits de Parfum Olfazeta 30%</p>
+          <td style="padding:24px 40px;text-align:center;">
+            <p style="margin:0 0 6px;font-size:11px;color:#9a8870;letter-spacing:.06em;">© Cheirobom · Extraits de Parfum Olfazeta</p>
+            <p style="margin:0;font-size:10px;color:#b8a888;">boutique.cheirobom@gmail.com</p>
           </td>
         </tr>
+
       </table>
     </td></tr>
   </table>
@@ -61,210 +78,242 @@ function baseLayout(title, bodyHtml) {
 </html>`;
 }
 
-// ── Email 1 : Nouvelle commande → admin ──────────────────────────────────────
+// ── Tableau articles ─────────────────────────────────────────────────────────
 
-function newOrderAdminHtml(order) {
-  const { orderId, customer = {}, items = [], subtotal, total, createdAt } = order;
-  const date = new Date(createdAt).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
+function itemsTable(items = []) {
+  const rows = items.map(item => `
+    <tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0e8d8;font-size:13px;color:#2c2414;">${item.name}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0e8d8;font-size:13px;color:#6b5a3a;text-align:center;">${item.quantity || item.qty || 1}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0e8d8;font-size:13px;color:#2c2414;text-align:right;white-space:nowrap;">${fmtPrice((item.price) * (item.quantity || item.qty || 1))}</td>
+    </tr>`).join('');
 
-  const body = `
-    <p style="margin:0 0 16px;">Une nouvelle commande vient d'être créée.</p>
-
-    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-      <tr>
-        <td style="padding:8px 12px;background:#faf8f5;font-size:13px;color:#7a6a4a;">Commande</td>
-        <td style="padding:8px 12px;font-size:13px;font-weight:600;">${orderId}</td>
+  return `
+  <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+    <thead>
+      <tr style="background:#0f0a04;">
+        <th style="padding:10px 12px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#c9a05a;font-weight:400;text-align:left;">Article</th>
+        <th style="padding:10px 12px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#c9a05a;font-weight:400;text-align:center;">Qté</th>
+        <th style="padding:10px 12px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#c9a05a;font-weight:400;text-align:right;">Prix</th>
       </tr>
-      <tr>
-        <td style="padding:8px 12px;background:#faf8f5;font-size:13px;color:#7a6a4a;">Date</td>
-        <td style="padding:8px 12px;font-size:13px;">${date}</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 12px;background:#faf8f5;font-size:13px;color:#7a6a4a;">Client</td>
-        <td style="padding:8px 12px;font-size:13px;">${customer.name || '—'}</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 12px;background:#faf8f5;font-size:13px;color:#7a6a4a;">Email client</td>
-        <td style="padding:8px 12px;font-size:13px;">${customer.email || '—'}</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 12px;background:#faf8f5;font-size:13px;color:#7a6a4a;">Téléphone</td>
-        <td style="padding:8px 12px;font-size:13px;">${customer.phone || '—'}</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 12px;background:#faf8f5;font-size:13px;color:#7a6a4a;">Adresse</td>
-        <td style="padding:8px 12px;font-size:13px;">${customer.address || '—'}</td>
-      </tr>
-    </table>
-
-    <h3 style="margin:0 0 12px;font-size:14px;font-weight:600;color:#1a1209;text-transform:uppercase;letter-spacing:.08em;">Articles commandés</h3>
-    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-      <thead>
-        <tr style="background:#1a1209;">
-          <th style="padding:8px 12px;font-size:12px;color:#b8924a;text-align:left;font-weight:400;letter-spacing:.08em;">Article</th>
-          <th style="padding:8px 12px;font-size:12px;color:#b8924a;text-align:center;font-weight:400;letter-spacing:.08em;">Qté</th>
-          <th style="padding:8px 12px;font-size:12px;color:#b8924a;text-align:right;font-weight:400;letter-spacing:.08em;">Prix</th>
-        </tr>
-      </thead>
-      <tbody>${formatItems(items)}</tbody>
-    </table>
-
-    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
-      <tr>
-        <td style="padding:6px 12px;font-size:13px;color:#7a6a4a;">Sous-total</td>
-        <td style="padding:6px 12px;font-size:13px;text-align:right;">${Number(subtotal).toFixed(2)} €</td>
-      </tr>
-      <tr>
-        <td style="padding:6px 12px;font-size:14px;font-weight:700;color:#1a1209;">Total</td>
-        <td style="padding:6px 12px;font-size:14px;font-weight:700;color:#b8924a;text-align:right;">${Number(total).toFixed(2)} €</td>
-      </tr>
-    </table>
-  `;
-
-  return baseLayout(`Nouvelle commande — ${orderId}`, body);
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
 }
 
-// ── Email 2 : Confirmation → client ─────────────────────────────────────────
+// ── Email 1 — Nouvelle commande → admin ──────────────────────────────────────
+
+function newOrderAdminHtml(order) {
+  const { orderId, customer = {}, shipping = {}, items = [], subtotal, total, createdAt } = order;
+  const date = new Date(createdAt).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'full', timeStyle: 'short' });
+
+  const body = `
+    <!-- Badge statut -->
+    <div style="background:#f5f0e8;border-left:3px solid #c9a05a;padding:14px 18px;margin-bottom:28px;border-radius:0 2px 2px 0;">
+      <span style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#c9a05a;">Nouvelle commande reçue</span>
+      <div style="margin-top:4px;font-family:Georgia,serif;font-size:22px;color:#0f0a04;letter-spacing:.06em;">${orderId}</div>
+      <div style="margin-top:4px;font-size:12px;color:#9a8870;">${date}</div>
+    </div>
+
+    <!-- Infos client -->
+    <h2 style="margin:0 0 14px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#c9a05a;font-weight:400;">Informations client</h2>
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:28px;background:#faf7f2;border:1px solid #e8e0d0;">
+      <tr>
+        <td style="padding:10px 14px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9a8870;width:38%;border-bottom:1px solid #e8e0d0;">Nom</td>
+        <td style="padding:10px 14px;font-size:13px;color:#2c2414;border-bottom:1px solid #e8e0d0;">${customer.name || '—'}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9a8870;border-bottom:1px solid #e8e0d0;">Email</td>
+        <td style="padding:10px 14px;font-size:13px;color:#2c2414;border-bottom:1px solid #e8e0d0;">${customer.email || '—'}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9a8870;border-bottom:1px solid #e8e0d0;">Téléphone</td>
+        <td style="padding:10px 14px;font-size:13px;color:#2c2414;border-bottom:1px solid #e8e0d0;">${customer.phone || '—'}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9a8870;">Adresse livraison</td>
+        <td style="padding:10px 14px;font-size:13px;color:#2c2414;">${fmtAddress(shipping)}</td>
+      </tr>
+    </table>
+
+    <!-- Articles -->
+    <h2 style="margin:0 0 14px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#c9a05a;font-weight:400;">Articles commandés</h2>
+    ${itemsTable(items)}
+
+    <!-- Total -->
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:32px;">
+      <tr>
+        <td style="padding:8px 12px;font-size:12px;color:#9a8870;text-align:right;">Sous-total</td>
+        <td style="padding:8px 12px;font-size:12px;color:#2c2414;text-align:right;white-space:nowrap;width:120px;">${fmtPrice(subtotal)}</td>
+      </tr>
+      <tr style="background:#f5f0e8;">
+        <td style="padding:10px 12px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#2c2414;text-align:right;font-weight:600;">Total encaissé</td>
+        <td style="padding:10px 12px;font-family:Georgia,serif;font-size:18px;color:#c9a05a;text-align:right;white-space:nowrap;">${fmtPrice(total)}</td>
+      </tr>
+    </table>
+
+    <!-- Mention confidentielle -->
+    <p style="margin:0;padding:12px 16px;background:#faf7f2;border:1px solid #e8e0d0;font-size:10px;color:#9a8870;text-align:center;letter-spacing:.06em;">
+      🔒 Informations confidentielles — Usage interne uniquement
+    </p>`;
+
+  return baseLayout(body);
+}
+
+// ── Email 2 — Confirmation → client ─────────────────────────────────────────
 
 function confirmationClientHtml(order) {
   const { orderId, customer = {}, items = [], subtotal, total } = order;
-  const firstName = (customer.name || 'Client').split(' ')[0];
+  const firstName = (customer.name || 'cher(e) client(e)').split(' ')[0];
 
   const body = `
-    <p style="margin:0 0 16px;">Bonjour <strong>${firstName}</strong>,</p>
-    <p style="margin:0 0 24px;line-height:1.7;">
-      Merci pour votre commande ! Nous avons bien reçu votre demande et vous confirmons
-      sa prise en charge. Vous recevrez un email dès que votre paiement sera validé.
+    <!-- Message de bienvenue -->
+    <h1 style="margin:0 0 8px;font-family:Georgia,serif;font-size:26px;font-weight:400;color:#0f0a04;letter-spacing:.04em;">Merci, ${firstName} !</h1>
+    <p style="margin:0 0 28px;font-size:14px;line-height:1.8;color:#6b5a3a;">
+      Votre commande a bien été reçue et est en cours de traitement.<br>
+      Nous mettons tout notre soin à préparer votre extrait de parfum avec la plus grande attention.
     </p>
 
-    <div style="background:#faf8f5;border-left:3px solid #b8924a;padding:16px 20px;margin-bottom:24px;">
-      <p style="margin:0;font-size:13px;color:#7a6a4a;letter-spacing:.06em;text-transform:uppercase;">Numéro de commande</p>
-      <p style="margin:4px 0 0;font-size:18px;font-weight:700;color:#1a1209;letter-spacing:.06em;">${orderId}</p>
+    <!-- Numéro de commande -->
+    <div style="background:#f5f0e8;border:1px solid #e8e0d0;padding:18px 22px;margin-bottom:28px;text-align:center;">
+      <div style="font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#9a8870;margin-bottom:6px;">Votre numéro de commande</div>
+      <div style="font-family:Georgia,serif;font-size:24px;color:#0f0a04;letter-spacing:.1em;">${orderId}</div>
+      <div style="margin-top:6px;font-size:11px;color:#9a8870;">Conservez ce numéro pour tout suivi</div>
     </div>
 
-    <h3 style="margin:0 0 12px;font-size:14px;font-weight:600;color:#1a1209;text-transform:uppercase;letter-spacing:.08em;">Récapitulatif</h3>
-    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-      <thead>
-        <tr style="background:#1a1209;">
-          <th style="padding:8px 12px;font-size:12px;color:#b8924a;text-align:left;font-weight:400;letter-spacing:.08em;">Article</th>
-          <th style="padding:8px 12px;font-size:12px;color:#b8924a;text-align:center;font-weight:400;letter-spacing:.08em;">Qté</th>
-          <th style="padding:8px 12px;font-size:12px;color:#b8924a;text-align:right;font-weight:400;letter-spacing:.08em;">Prix</th>
-        </tr>
-      </thead>
-      <tbody>${formatItems(items)}</tbody>
-    </table>
+    <!-- Récapitulatif -->
+    <h2 style="margin:0 0 14px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#c9a05a;font-weight:400;">Récapitulatif de votre commande</h2>
+    ${itemsTable(items)}
 
-    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:28px;">
+    <!-- Total -->
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:32px;">
       <tr>
-        <td style="padding:6px 12px;font-size:13px;color:#7a6a4a;">Sous-total</td>
-        <td style="padding:6px 12px;font-size:13px;text-align:right;">${Number(subtotal).toFixed(2)} €</td>
+        <td style="padding:8px 12px;font-size:12px;color:#9a8870;text-align:right;">Sous-total</td>
+        <td style="padding:8px 12px;font-size:12px;color:#2c2414;text-align:right;white-space:nowrap;width:120px;">${fmtPrice(subtotal)}</td>
       </tr>
-      <tr>
-        <td style="padding:6px 12px;font-size:14px;font-weight:700;color:#1a1209;">Total</td>
-        <td style="padding:6px 12px;font-size:14px;font-weight:700;color:#b8924a;text-align:right;">${Number(total).toFixed(2)} €</td>
+      <tr style="background:#f5f0e8;">
+        <td style="padding:10px 12px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#2c2414;text-align:right;font-weight:600;">Total</td>
+        <td style="padding:10px 12px;font-family:Georgia,serif;font-size:18px;color:#c9a05a;text-align:right;white-space:nowrap;">${fmtPrice(total)}</td>
       </tr>
     </table>
 
-    <p style="margin:0;font-size:13px;line-height:1.7;color:#7a6a4a;">
-      Pour toute question, répondez à cet email ou contactez-nous directement.<br>
-      <strong style="color:#1a1209;">L'équipe Cheirobom</strong>
+    <!-- Délai de livraison -->
+    <div style="background:#0f0a04;padding:20px 24px;margin-bottom:28px;text-align:center;">
+      <div style="font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#c9a05a;margin-bottom:8px;">Délai de livraison estimé</div>
+      <div style="font-family:Georgia,serif;font-size:18px;color:#ffffff;">5 à 10 jours ouvrés</div>
+      <div style="margin-top:6px;font-size:11px;color:#9a8870;">selon votre localisation</div>
+    </div>
+
+    <!-- Contact -->
+    <p style="margin:0 0 20px;font-size:13px;line-height:1.8;color:#6b5a3a;">
+      Une question sur votre commande ? Notre équipe est disponible à<br>
+      <a href="mailto:boutique.cheirobom@gmail.com" style="color:#c9a05a;text-decoration:none;font-weight:600;">boutique.cheirobom@gmail.com</a>
     </p>
-  `;
 
-  return baseLayout('Confirmation de commande', body);
+    <!-- Mention RGPD -->
+    <p style="margin:0;padding:12px 16px;background:#faf7f2;border:1px solid #e8e0d0;font-size:10px;color:#9a8870;text-align:center;letter-spacing:.04em;line-height:1.6;">
+      🔒 Vos données personnelles sont protégées et ne seront jamais partagées avec des tiers,
+      conformément au Règlement Général sur la Protection des Données (RGPD).
+    </p>`;
+
+  return baseLayout(body);
 }
 
-// ── Email 3 : Paiement confirmé → admin ─────────────────────────────────────
+// ── Email 3 — Paiement confirmé → admin ─────────────────────────────────────
 
 function paymentConfirmedAdminHtml(order) {
-  const { orderId, customer = {}, total, paymentId } = order;
-  const now = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
+  const { orderId, customer = {}, shipping = {}, total, paymentId } = order;
+  const now = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'full', timeStyle: 'short' });
 
   const body = `
-    <p style="margin:0 0 16px;">
-      Le paiement de la commande <strong>${orderId}</strong> a été confirmé.
-    </p>
+    <!-- Badge -->
+    <div style="background:#0a1f0a;border-left:3px solid #4caf50;padding:14px 18px;margin-bottom:28px;border-radius:0 2px 2px 0;">
+      <span style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#4caf50;">✓ Paiement confirmé</span>
+      <div style="margin-top:4px;font-family:Georgia,serif;font-size:22px;color:#ffffff;letter-spacing:.06em;">${orderId}</div>
+      <div style="margin-top:4px;font-size:12px;color:#9a9a9a;">${now}</div>
+    </div>
 
-    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+    <!-- Infos -->
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:28px;background:#faf7f2;border:1px solid #e8e0d0;">
       <tr>
-        <td style="padding:8px 12px;background:#faf8f5;font-size:13px;color:#7a6a4a;">Commande</td>
-        <td style="padding:8px 12px;font-size:13px;font-weight:600;">${orderId}</td>
+        <td style="padding:10px 14px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9a8870;width:38%;border-bottom:1px solid #e8e0d0;">Client</td>
+        <td style="padding:10px 14px;font-size:13px;color:#2c2414;border-bottom:1px solid #e8e0d0;">${customer.name || '—'}</td>
       </tr>
       <tr>
-        <td style="padding:8px 12px;background:#faf8f5;font-size:13px;color:#7a6a4a;">ID Paiement</td>
-        <td style="padding:8px 12px;font-size:13px;">${paymentId || '—'}</td>
+        <td style="padding:10px 14px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9a8870;border-bottom:1px solid #e8e0d0;">Email</td>
+        <td style="padding:10px 14px;font-size:13px;color:#2c2414;border-bottom:1px solid #e8e0d0;">${customer.email || '—'}</td>
       </tr>
       <tr>
-        <td style="padding:8px 12px;background:#faf8f5;font-size:13px;color:#7a6a4a;">Client</td>
-        <td style="padding:8px 12px;font-size:13px;">${customer.name || '—'}</td>
+        <td style="padding:10px 14px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9a8870;border-bottom:1px solid #e8e0d0;">Adresse livraison</td>
+        <td style="padding:10px 14px;font-size:13px;color:#2c2414;border-bottom:1px solid #e8e0d0;">${fmtAddress(shipping)}</td>
       </tr>
       <tr>
-        <td style="padding:8px 12px;background:#faf8f5;font-size:13px;color:#7a6a4a;">Email client</td>
-        <td style="padding:8px 12px;font-size:13px;">${customer.email || '—'}</td>
+        <td style="padding:10px 14px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9a8870;border-bottom:1px solid #e8e0d0;">ID Paiement</td>
+        <td style="padding:10px 14px;font-size:13px;color:#2c2414;border-bottom:1px solid #e8e0d0;">${paymentId || '—'}</td>
       </tr>
       <tr>
-        <td style="padding:8px 12px;background:#faf8f5;font-size:13px;color:#7a6a4a;">Montant encaissé</td>
-        <td style="padding:8px 12px;font-size:15px;font-weight:700;color:#b8924a;">${Number(total).toFixed(2)} €</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 12px;background:#faf8f5;font-size:13px;color:#7a6a4a;">Confirmé le</td>
-        <td style="padding:8px 12px;font-size:13px;">${now}</td>
+        <td style="padding:10px 14px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9a8870;">Montant encaissé</td>
+        <td style="padding:10px 14px;font-family:Georgia,serif;font-size:20px;color:#c9a05a;">${fmtPrice(total)}</td>
       </tr>
     </table>
 
-    <p style="margin:0;font-size:13px;color:#7a6a4a;">La commande peut maintenant être préparée et expédiée.</p>
-  `;
+    <p style="margin:0;padding:12px 16px;background:#faf7f2;border:1px solid #e8e0d0;font-size:10px;color:#9a8870;text-align:center;letter-spacing:.06em;">
+      🔒 Informations confidentielles — Usage interne uniquement
+    </p>`;
 
-  return baseLayout(`Paiement reçu — ${orderId}`, body);
+  return baseLayout(body);
 }
 
 // ── EmailService ─────────────────────────────────────────────────────────────
 
 class EmailService {
   constructor() {
-    this._transporter = null;
+    this._client = null;
   }
 
-  _getTransporter() {
-    if (!this._transporter) {
-      this._transporter = buildTransporter();
+  _getClient() {
+    if (!this._client) {
+      this._client = buildClient();
     }
-    return this._transporter;
+    return this._client;
   }
 
-  async _send(options) {
-    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-      console.warn('[EmailService] GMAIL_USER ou GMAIL_APP_PASSWORD manquant — email ignoré');
+  async _send({ to, subject, html }) {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[EmailService] RESEND_API_KEY manquant — email ignoré');
       return;
     }
     try {
-      const info = await this._getTransporter().sendMail(options);
-      console.log(`[EmailService] Email envoyé : ${options.subject} → ${options.to} (${info.messageId})`);
+      const { data, error } = await this._getClient().emails.send({
+        from: `${FROM_NAME} <${FROM_ADDRESS}>`,
+        to,
+        subject,
+        html,
+      });
+      if (error) throw new Error(JSON.stringify(error));
+      console.log(`[EmailService] Envoyé : "${subject}" → ${to} (id: ${data?.id})`);
     } catch (err) {
-      console.error(`[EmailService] Échec envoi email "${options.subject}" :`, err.message);
+      console.error(`[EmailService] Échec : "${subject}" → ${to} :`, err.message);
+      throw err;
     }
   }
 
-  // Appelé à la création d'une commande
+  // Appelé à la création d'une commande (checkout.js et OrderService)
   async onOrderCreated(order) {
     console.log(`[EmailService] onOrderCreated — ${order.orderId}`);
     const { customer = {} } = order;
 
     await Promise.all([
-      // Admin : nouvelle commande
       this._send({
-        from: `"Cheirobom" <${process.env.GMAIL_USER}>`,
         to: ADMIN_EMAIL,
-        subject: `[Cheirobom] Nouvelle commande — ${order.orderId}`,
+        subject: `🛍️ Nouvelle commande Cheirobom — ${order.orderId}`,
         html: newOrderAdminHtml(order),
       }),
 
-      // Client : confirmation de réception
       customer.email
         ? this._send({
-            from: `"Cheirobom" <${process.env.GMAIL_USER}>`,
             to: customer.email,
-            subject: `Votre commande Cheirobom — ${order.orderId}`,
+            subject: `Merci pour votre commande — Cheirobom 🖤`,
             html: confirmationClientHtml(order),
           })
         : Promise.resolve(),
@@ -275,9 +324,8 @@ class EmailService {
   async onPaymentConfirmed(order) {
     console.log(`[EmailService] onPaymentConfirmed — ${order.orderId}`);
     await this._send({
-      from: `"Cheirobom" <${process.env.GMAIL_USER}>`,
       to: ADMIN_EMAIL,
-      subject: `[Cheirobom] Paiement reçu — ${order.orderId}`,
+      subject: `✅ Paiement reçu — ${order.orderId}`,
       html: paymentConfirmedAdminHtml(order),
     });
   }

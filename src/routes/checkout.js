@@ -14,7 +14,7 @@ const router = Router();
  */
 router.post('/', async (req, res, next) => {
   try {
-    const { items, customer = {} } = req.body;
+    const { items, customer = {}, shipping = {} } = req.body;
 
     if (!Array.isArray(items) || !items.length) {
       return res.status(400).json({ error: 'items requis' });
@@ -44,6 +44,7 @@ router.post('/', async (req, res, next) => {
       subtotal: total,
       total,
       customer,
+      shipping,
       paymentId: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
