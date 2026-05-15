@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const store = require('../store');
+const emailService = require('./EmailService');
 
 function httpError(msg, status) {
   return Object.assign(new Error(msg), { status });
@@ -23,6 +24,7 @@ class OrderService {
     };
 
     store.setOrder(orderId, order);
+    emailService.onOrderCreated(order).catch(err => console.error('Email error:', err));
     return order;
   }
 

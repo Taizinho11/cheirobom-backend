@@ -1,6 +1,7 @@
 const config = require('../config');
 const store = require('../store');
 const orderService = require('./OrderService');
+const emailService = require('./EmailService');
 const MollieProvider = require('../providers/MollieProvider');
 const SumUpProvider = require('../providers/SumUpProvider');
 const PayPalProvider = require('../providers/PayPalProvider');
@@ -62,7 +63,10 @@ class PaymentService {
 
     const orderId = store.getOrderIdByPayment(paymentId);
     if (orderId) {
-      orderService.updateStatus(orderId, paid ? 'paid' : status);
+      const order = orderService.updateStatus(orderId, paid ? 'paid' : status);
+      if (paid && order) {
+        emailService.onPaymentConfirmed(order).catch(err => console.error('Email error:', err));
+      }
     }
 
     return result;

@@ -247,6 +247,7 @@ class EmailService {
 
   // Appelé à la création d'une commande
   async onOrderCreated(order) {
+    console.log(`[EmailService] onOrderCreated — ${order.orderId}`);
     const { customer = {} } = order;
 
     await Promise.all([
@@ -272,6 +273,7 @@ class EmailService {
 
   // Appelé quand le paiement est confirmé (statut 'paid')
   async onPaymentConfirmed(order) {
+    console.log(`[EmailService] onPaymentConfirmed — ${order.orderId}`);
     await this._send({
       from: `"Cheirobom" <${process.env.GMAIL_USER}>`,
       to: ADMIN_EMAIL,
