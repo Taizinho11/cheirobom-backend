@@ -19,6 +19,9 @@ class StripeProvider extends PaymentProvider {
   }
 
   async createPayment({ orderId, amount, currency, description, redirectUrl }) {
+    const FREE_SHIPPING_THRESHOLD = 5000; // 50€ en centimes
+    const shippingCost = amount >= FREE_SHIPPING_THRESHOLD ? 0 : 500;
+
     const session = await this.stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: [{
@@ -44,8 +47,8 @@ class StripeProvider extends PaymentProvider {
         {
           shipping_rate_data: {
             type: 'fixed_amount',
-            fixed_amount: { amount: 500, currency: currency.toLowerCase() },
-            display_name: '🚚 Livraison à domicile',
+            fixed_amount: { amount: shippingCost, currency: currency.toLowerCase() },
+            display_name: shippingCost === 0 ? '🚚 Livraison gratuite' : '🚚 Livraison à domicile',
             delivery_estimate: {
               minimum: { unit: 'business_day', value: 3 },
               maximum: { unit: 'business_day', value: 5 },
