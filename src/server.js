@@ -7,6 +7,7 @@ const cartRouter = require('./routes/cart');
 const ordersRouter = require('./routes/orders');
 const paymentsRouter = require('./routes/payments');
 const checkoutRouter = require('./routes/checkout');
+const reviewsRouter = require('./routes/reviews');
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use('/api/cart', cartRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/checkout', checkoutRouter);
+app.use('/api/reviews', reviewsRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({

@@ -310,6 +310,44 @@ class EmailService {
     });
   }
 
+  async sendReviewNotification({ prenom, email, parfum, note, commentaire }) {
+    const stars = '★'.repeat(note) + '☆'.repeat(5 - note);
+    const html = baseLayout(`
+      <h2 style="margin:0 0 24px;font-family:Georgia,serif;font-size:20px;font-weight:400;color:#2c2414;letter-spacing:.06em;">
+        Nouvel avis client
+      </h2>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+        <tr>
+          <td style="padding:10px 0;border-bottom:1px solid #f0e8d8;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#9a8870;width:140px;">Prénom</td>
+          <td style="padding:10px 0;border-bottom:1px solid #f0e8d8;font-size:14px;color:#2c2414;">${prenom}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0;border-bottom:1px solid #f0e8d8;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#9a8870;">Email</td>
+          <td style="padding:10px 0;border-bottom:1px solid #f0e8d8;font-size:14px;color:#2c2414;">${email}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0;border-bottom:1px solid #f0e8d8;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#9a8870;">Parfum</td>
+          <td style="padding:10px 0;border-bottom:1px solid #f0e8d8;font-size:14px;color:#2c2414;">${parfum}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0;border-bottom:1px solid #f0e8d8;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#9a8870;">Note</td>
+          <td style="padding:10px 0;border-bottom:1px solid #f0e8d8;font-size:16px;color:#c9a05a;letter-spacing:.05em;">${stars} <span style="font-size:13px;color:#6b5a3a;">(${note}/5)</span></td>
+        </tr>
+        <tr>
+          <td style="padding:14px 0 6px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#9a8870;vertical-align:top;">Commentaire</td>
+          <td style="padding:14px 0 6px;"></td>
+        </tr>
+      </table>
+      <p style="margin:0;padding:16px;background:#faf6ef;border-left:3px solid #c9a05a;font-size:14px;line-height:1.7;color:#2c2414;font-style:italic;">${commentaire}</p>
+    `);
+
+    await this._send({
+      to: ADMIN_EMAIL,
+      subject: `⭐ Nouvel avis — ${prenom} (${stars})`,
+      html,
+    });
+  }
+
   // Appelé quand le paiement est confirmé (statut 'paid')
   async onPaymentConfirmed(order) {
     console.log(`[EmailService] onPaymentConfirmed — ${order.orderId}`);
