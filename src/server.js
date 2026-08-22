@@ -14,6 +14,9 @@ const app = express();
 const allowedOrigins = [
   config.cors.origin,
   'https://cheirobom-frontend.vercel.app',
+  'https://cheirobom-site.vercel.app',
+  'https://cheirobom.fr',
+  'https://www.cheirobom.fr',
 ].filter(Boolean);
 
 app.use(cors({
