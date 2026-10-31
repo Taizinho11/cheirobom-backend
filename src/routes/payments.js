@@ -5,6 +5,12 @@ const paymentService = require('../services/PaymentService');
 
 const router = Router();
 
+// Routes de simulation : disponibles uniquement avec PAYMENT_PROVIDER=test.
+function testModeOnly(req, res, next) {
+  if (config.payment.provider === 'test') return next();
+  return res.status(404).json({ error: 'Route introuvable' });
+}
+
 /**
  * GET /api/payments/return?orderId=ORD-XXXX
  * URL de redirection après paiement (appelée par Mollie / SumUp).
@@ -59,7 +65,7 @@ router.post('/webhook', async (req, res) => {
  * Page de simulation de paiement (PAYMENT_PROVIDER=test uniquement).
  * Affiche un récapitulatif de commande et deux boutons : confirmer / annuler.
  */
-router.get('/test-pay', (req, res) => {
+router.get('/test-pay', testModeOnly, (req, res) => {
   const { paymentId, orderId, amount, currency = 'EUR' } = req.query;
   if (!paymentId || !orderId) return res.status(400).send('Paramètres manquants');
 
@@ -119,7 +125,7 @@ router.get('/test-pay', (req, res) => {
  * GET /api/payments/test-confirm?paymentId=&orderId=
  * Marque la commande comme payée et redirige vers le frontend.
  */
-router.get('/test-confirm', (req, res) => {
+router.get('/test-confirm', testModeOnly, (req, res) => {
   const { paymentId, orderId } = req.query;
   if (!orderId) return res.status(400).send('orderId manquant');
 
@@ -131,7 +137,7 @@ router.get('/test-confirm', (req, res) => {
  * GET /api/payments/test-cancel?orderId=
  * Marque la commande comme annulée et redirige vers le frontend.
  */
-router.get('/test-cancel', (req, res) => {
+router.get('/test-cancel', testModeOnly, (req, res) => {
   const { orderId } = req.query;
   if (orderId) { try { orderService.updateStatus(orderId, 'cancelled'); } catch (e) {} }
   return res.redirect(`${config.urls.frontend}?payment=cancelled`);
