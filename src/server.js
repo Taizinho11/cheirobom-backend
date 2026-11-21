@@ -45,6 +45,8 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     provider: config.payment.provider,
     env: config.nodeEnv,
+    emailConfigured: !!process.env.RESEND_API_KEY,
+    lastEmail: require('./services/EmailService').lastSend || null,
     time: new Date().toISOString(),
   });
 });

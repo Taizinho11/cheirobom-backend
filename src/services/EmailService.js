@@ -281,6 +281,7 @@ class EmailService {
   async _send({ to, subject, html }) {
     if (!process.env.RESEND_API_KEY) {
       console.warn('[EmailService] RESEND_API_KEY manquant — email ignoré');
+      this.lastSend = { ok: false, at: new Date().toISOString(), error: 'RESEND_API_KEY manquant' };
       return;
     }
     try {
@@ -292,7 +293,9 @@ class EmailService {
       });
       if (error) throw new Error(JSON.stringify(error));
       console.log(`[EmailService] Envoyé : "${subject}" → ${to} (id: ${data?.id})`);
+      this.lastSend = { ok: true, at: new Date().toISOString(), error: null };
     } catch (err) {
+      this.lastSend = { ok: false, at: new Date().toISOString(), error: String(err.message).slice(0, 200) };
       console.error(`[EmailService] Échec : "${subject}" → ${to} :`, err.message);
       throw err;
     }
